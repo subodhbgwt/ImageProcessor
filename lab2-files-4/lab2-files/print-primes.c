@@ -48,6 +48,7 @@ void print_primes(int n){
         print_number(i);
       }
     }
+  printf("\n");
 }
 
 // 'argc' contains the number of program arguments, and
