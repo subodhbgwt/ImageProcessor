@@ -16,14 +16,20 @@ int list1[20]; // instantiate two lists with integers in them. size is 20 becaus
 int list2[20];
 int counter = 0;
 
-void copycodes(const char *src, int *dst, int *cnt) { // a0 = src char, a1 = dst int, a2 = &counter
-  while (*src != 0) { // as long as the pointer doesn't point to an integer zero, we continue. Also works with '\0' or just *src.
-    unsigned char ch = (unsigned char)*src; // corresponds to lb = to, 0(a0)
-    *dst = (int)ch; // sw = t0, 0(a1)
-    src++; // corresponds to addi a0, a0, 1 and a1, a1, 4
-    dst++;
+void copycodes(const char *a0, int *a1, int *counter) {
+  int t0;
+  int t1;
+  while (1) { 
+    t0 = (int)*a0; // get character from the string lb t0, 0(a0)
+    if (t0 == 0) break; // if it is zero, we are done, i.e null as the last character.
+    *a1 = t0; // store the value of t0 into a1. sw t0, 0(a1)
 
-    (*cnt)++;
+    a0++; // increment the pointer to the string. addi a0, a0, 1
+    a1++; // increment the pointer to the list. addi a1, a1, 4, each int is 4 bytes.
+
+    t1 = *counter; // load counter into t1. lw t1, 0(a2)
+    t1++; // increment t1. addi t1, t1, 1
+    *counter = t1; // store t1 back into counter. sw t1, 0(a2)
   }
 }
  // text one goes into list 1, text 2 goes into list 2.
@@ -31,8 +37,6 @@ void work(void) {
   copycodes(text1, list1, &counter);
   copycodes(text2, list2, &counter);
 }
-
-
 
 void printlist(const int* lst){
   printf("ASCII codes and corresponding characters.\n");
