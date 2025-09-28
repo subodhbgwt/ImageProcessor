@@ -10,27 +10,27 @@
 ###################
 # Macros for RARS #
 ###################
-.macro	PUSH (%reg)
-	addi	sp,sp,-4
-	sw	%reg,0(sp) 
-.end_macro
+#.macro	PUSH (%reg)
+#	addi	sp,sp,-4
+#	sw	%reg,0(sp) 
+#.end_macro
 
-.macro	POP (%reg)
-	lw	%reg,0(sp)
-	addi	sp,sp,4
-.end_macro
+#.macro	POP (%reg)
+#	lw	%reg,0(sp)
+#	addi	sp,sp,4
+#.end_macro
 ###################
 # Macros for DTEK #
 ###################
-#.macro	PUSH reg
-#	addi sp,sp,-4
-#	sw \reg,0(sp) 
-#.endm
+.macro	PUSH reg
+	addi sp,sp,-4
+	sw \reg,0(sp) 
+.endm
 
-#.macro	POP reg
-#	lw	\reg,0(sp)
-#	addi	sp,sp,4
-#.endm
+.macro	POP reg
+	lw	\reg,0(sp)
+	addi	sp,sp,4
+.endm
 #############################################################
 
 	.data
@@ -38,7 +38,7 @@
 mytime:	.word 	0x5957
 timstr:	.asciz 	"text more text lots of text\0"
 	.text
-	.globl timetemplate, tick, time2string
+	.globl timetemplate, tick, time2string, delay, display_string
 
 # Function for displaying a string with a newline at the end	
 display_string:	
@@ -113,9 +113,9 @@ tiend:	sw	t0,0(a0)	# save updated result
 
 time2string:
     # save caller context
-    PUSH (ra)
-    PUSH (s0)
-    PUSH (s1)
+    PUSH ra
+    PUSH s0
+    PUSH s1
 
     # save arguments into saved registers
     mv   s0, a0           # buffer pointer -> s0
@@ -157,9 +157,9 @@ time2string:
     sb zero, 5(s0)     # null terminator
 
     # restore caller context
-    POP (s1)
-    POP (s0)
-    POP (ra)
+    POP s1
+    POP s0
+    POP ra
 
     jr ra
         
