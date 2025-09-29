@@ -13,6 +13,17 @@ extern void tick(int*);
 extern void delay(int);
 extern int nextprime( int );
 
+#define LED_ADDRESS 0x04000000
+#define LEDSPOINT (*(volatile unsigned int *)LED_ADDRESS)
+#define DISPLAY_ADDRESS 0x04000050
+#define DISPLAYOFFSET 0x10
+#define SWITCH_ADDRESS 0x04000010
+#define BUTTON2_ADDRESS 0x040000d0
+#define TIMER_BASE 0x04000020u
+#define TMR_STATUS (*(volatile unsigned int *)(TIMER_BASE + 0x00)) 
+#define TMR_CONTROL (*(volatile unsigned int *)(TIMER_BASE + 0x04)) 
+#define TMR_PERIODL (*(volatile unsigned int *)(TIMER_BASE + 0x08)) 
+#define TMR_PERIODH (*(volatile unsigned int *)(TIMER_BASE + 0x0C)) 
 
 int mytime = 0x5957;
 char textstring[] = "text, more text, and even more text!";
@@ -32,18 +43,6 @@ void labinit(void)
   TMR_PERIODH = (period >> 16);
   TMR_CONTROL = (1u<<1) | (1u<<2);  // CONT | START  (ITO=0 since we poll)
 }
-
-#define LED_ADDRESS 0x04000000
-#define LEDSPOINT (*(volatile unsigned int *)LED_ADDRESS)
-#define DISPLAY_ADDRESS 0x04000050
-#define DISPLAYOFFSET 0x10
-#define SWITCH_ADDRESS 0x04000010
-#define BUTTON2_ADDRESS 0x040000d0
-#define TIMER_BASE 0x04000020u
-#define TMR_STATUS (*(volatile unsigned int *)(TIMER_BASE + 0x00)) 
-#define TMR_CONTROL (*(volatile unsigned int *)(TIMER_BASE + 0x04)) 
-#define TMR_PERIODL (*(volatile unsigned int *)(TIMER_BASE + 0x08)) 
-#define TMR_PERIODH (*(volatile unsigned int *)(TIMER_BASE + 0x0C)) 
 
 
 void set_leds(int led_mask) {
@@ -139,13 +138,12 @@ int main() {
 
      if (TMR_STATUS & 1u) {
       TMR_STATUS = 0;
-    
-    time2string(textstring, mytime);  
-    display_string(textstring);  // print to terminal and board
-    disp_str(textstring);
 
       if (++count >= 10) {
         count = 0;
+        time2string(textstring, mytime);
+        disp_str(textstring);
+        display_string(textstring);
         tick(&mytime);
       }
 

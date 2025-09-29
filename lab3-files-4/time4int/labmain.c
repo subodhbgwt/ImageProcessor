@@ -12,6 +12,7 @@ extern void time2string(char*,int);
 extern void tick(int*);
 extern void delay(int);
 extern int nextprime( int );
+extern void enable_interrupt(void);
 
 #define LED_ADDRESS 0x04000000
 #define LEDSPOINT (*(volatile unsigned int *)LED_ADDRESS)
@@ -24,15 +25,26 @@ extern int nextprime( int );
 #define TMR_CONTROL (*(volatile unsigned int *)(TIMER_BASE + 0x04)) 
 #define TMR_PERIODL (*(volatile unsigned int *)(TIMER_BASE + 0x08)) 
 #define TMR_PERIODH (*(volatile unsigned int *)(TIMER_BASE + 0x0C)) 
+void disp_str(char *s);
 
-
+int prime = 1234567;
 int mytime = 0x5957;
 char textstring[] = "text, more text, and even more text!";
 volatile unsigned timeoutcount = 0;
 
 /* Below is the function that will be called when an interrupt is triggered. */
 void handle_interrupt(unsigned cause) 
-{}
+{
+  if (TMR_STATUS & 1u) {
+      TMR_STATUS = 0;
+      if (++timeoutcount >= 10) { // about 1 second has passed
+        timeoutcount = 0;
+        time2string(textstring, mytime);  
+        disp_str(textstring);
+        tick(&mytime);
+      }
+  }
+}
 
 /* Add your code here for initializing interrupts. */
 
@@ -43,7 +55,8 @@ void labinit(void)
   TMR_STATUS  = 0;          // clear any stale TO
   TMR_PERIODL = (period & 0xFFFFu);
   TMR_PERIODH = (period >> 16);
-  TMR_CONTROL = (1u<<1) | (1u<<2);  // CONT | START  (ITO=0 since we poll)
+  TMR_CONTROL = (1u<<0) | (1u<<1) | (1u<<2);  // ITO / CONT | START , now we have ito aswell since we are acknowledging the interrupt.
+  enable_interrupt();
 }
 
 void set_leds(int led_mask) {
@@ -84,11 +97,10 @@ void disp_str(char *s) {
   set_displays(2, seg_of(s[1])); 
   set_displays(1, seg_of(s[3]));
   set_displays(0, seg_of(s[4]));
-
 }
 
 /* Your code goes into main as well as any needed functions. */
-int main() {
+int main(void) {
    //ASSIGNMENT 1-D 
    /* for (int i = 0x0; i <= 0xF; i++) {
     set_leds(i); 
@@ -111,8 +123,8 @@ int main() {
     delay(1000);
   } */ 
 
-  // Assignment 2-B Call labinit()
-  labinit();
+  // Assignment 2-B/C Call labinit()
+   /* labinit();
 
    while (1) {
     if (get_bt()) {
@@ -161,7 +173,7 @@ int main() {
       mytime = (mytime & 0x00FFFF) | (hbcd << 16);
     }
   }
-}
+} */
 
   // Assignment 1-A Enter a forever loop
   /* while (1) {
@@ -171,6 +183,7 @@ int main() {
     tick( &mytime );     // Ticks the clock once
   } */
 
+  // Assignment 1H
   /* while (1) {
     if (get_bt()) {
         int sw = get_sw();
@@ -211,6 +224,16 @@ int main() {
       mytime = (mytime & 0x00FFFF) | (hbcd << 16);
     }
   } */
+
+  // Assignment 3C
+  labinit();
+   while (1) {
+    print("Prime: ");
+    prime = nextprime(prime);
+    print_dec(prime);
+    print("\n");
+   }
+
 }
 
 
