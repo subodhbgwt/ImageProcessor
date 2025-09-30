@@ -63,7 +63,7 @@ enable_interrupt:
 	csrs mie, t0
 
 	li t0, (1 << 3) ## set bit 3 in mstatus to 1, enables global interrupts
-	csrs mstatus 3 
+	csrs mstatus, t0 
 	
 	ret
 
