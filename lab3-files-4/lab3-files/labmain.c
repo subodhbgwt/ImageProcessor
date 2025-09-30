@@ -13,18 +13,6 @@ extern void tick(int*);
 extern void delay(int);
 extern int nextprime( int );
 
-#define LED_ADDRESS 0x04000000
-#define LEDSPOINT (*(volatile unsigned int *)LED_ADDRESS)
-#define DISPLAY_ADDRESS 0x04000050
-#define DISPLAYOFFSET 0x10
-#define SWITCH_ADDRESS 0x04000010
-#define BUTTON2_ADDRESS 0x040000d0
-#define TIMER_BASE 0x04000020u
-#define TMR_STATUS (*(volatile unsigned int *)(TIMER_BASE + 0x00)) 
-#define TMR_CONTROL (*(volatile unsigned int *)(TIMER_BASE + 0x04)) 
-#define TMR_PERIODL (*(volatile unsigned int *)(TIMER_BASE + 0x08)) 
-#define TMR_PERIODH (*(volatile unsigned int *)(TIMER_BASE + 0x0C)) 
-
 int mytime = 0x5957;
 char textstring[] = "text, more text, and even more text!";
 volatile int suppress_wrap = 1;
@@ -36,55 +24,63 @@ void handle_interrupt(unsigned cause)
 /* Add your code here for initializing interrupts. */
 
 void labinit(void)
-{
-  const unsigned period = 3000000u - 1u;
-  TMR_CONTROL = 0;          // stop/config while we program
-  TMR_STATUS  = 0;          // clear any stale TO
-  TMR_PERIODL = (period & 0xFFFFu);
-  TMR_PERIODH = (period >> 16);
-  TMR_CONTROL = (1u<<1) | (1u<<2);  // CONT | START  (ITO=0 since we poll)
-}
+{}
 
 
 void set_leds(int led_mask) {
-  led_mask &= 0x3FF; // mask the 10 lsb
-  LEDSPOINT = led_mask;
+  volatile int *LED_REG = (volatile int*)0x04000000;
+  *LED_REG = led_mask & 0x3ff; // leave the 10 lsb
 }
 
 void set_displays(int display_number, int value) {
-  volatile unsigned int *disp = (volatile unsigned int *)(DISPLAY_ADDRESS + display_number * DISPLAYOFFSET);
-  *disp = value;
+  int disp_offset = 0x04000050 + (0x10*display_number);
+  volatile int *DISPLAY_REG = (volatile int*)disp_offset;
+
+  switch (value) {
+    case 0:
+    *DISPLAY_REG = 0b11000000;
+    break;
+    case 1:
+    *DISPLAY_REG = 0b11111001;
+    break;
+    case 2:
+    *DISPLAY_REG = 0b10100100;
+    break;
+    case 3:
+    *DISPLAY_REG = 0b10110000;
+    break;
+    case 4:
+    *DISPLAY_REG = 0b10011001;
+    break;
+    case 5:
+    *DISPLAY_REG = 0b10010010;
+    break;
+    case 6:
+    *DISPLAY_REG = 0b10000010;
+    break;
+    case 7:
+    *DISPLAY_REG = 0b11111000;
+    break;
+    case 8:
+    *DISPLAY_REG = 0b10000000;
+    break;
+    case 9:
+    *DISPLAY_REG = 0b10010000;
+    break;
+    default:
+    *DISPLAY_REG = 0b00000000;
+    break;
+  }
 }
 
 int get_sw(void) { // print values corresponding to which switch is on in decimal form. 
-  volatile unsigned int *sw = (volatile unsigned int *)(SWITCH_ADDRESS);
-  int value = *sw & 0x3FF; // dereferencing switch and masking it
-  return value;
+  volatile unsigned int *SWITCH_REG = (volatile unsigned int *)0x04000010;
+  return *SWITCH_REG & 0x3ff;
 }
 
 int get_bt(void) { // print the least significant bit that corresponds to whether the button is pressed or not
-  volatile unsigned int *btn = (volatile unsigned int *)(BUTTON2_ADDRESS);
-  int value = *btn & 0x1; // dereferencing button and masking it to only the lsb
-  return value;
-}
-
-static const unsigned char SEGMENTS[10] = {
-  0xC0, 0xF9, 0xA4, 0xB0, 0x99, 0x92, 0x82, 0xF8, 0x80, 0x90 // all possible combinations of binary to make zero-nine in binary on the board leds.
-};
-
-static inline unsigned char seg_of(char c) {
-  return (c>='0' && c<='9') ? SEGMENTS[c-'0'] : 0xFF; // blank if false, otherwise if character is between zero and it will reflect on the board
-}
-
-void disp_str(char *s) {
-  unsigned hb = (unsigned)(mytime >> 16) & 0xFF; // seconds bcd
-  set_displays(5, SEGMENTS[(hb >> 4) & 0xF]); // hours tens
-  set_displays(4, SEGMENTS[hb & 0xF]); // hours ones, crappy time2string
-  set_displays(3, seg_of(s[0])); 
-  set_displays(2, seg_of(s[1])); 
-  set_displays(1, seg_of(s[3]));
-  set_displays(0, seg_of(s[4]));
-
+  volatile unsigned int *BUTTON_REG = (volatile unsigned int *)0x040000d0;
+  return *BUTTON_REG & 1;
 }
 
 /* Your code goes into main as well as any needed functions. */
@@ -99,78 +95,24 @@ int main() {
     set_displays(i, 0x2); // 0xFF turns all off, 0x00 turns all on. Reverse logic, zeroes enable them. 
   } */
 
-   /* ASSIGNMENT 1-F while (1) {
+   /* ASSIGNMENT 1-F 
+   while (1) {
     int sw_value = get_sw();
     print_dec(sw_value);
     delay(1000);
   } */
 
-  /* ASSIGNMENT 1-G while (1) {
+  /* ASSIGNMENT 1-G 
+  while (1) {
     int bt_value = get_bt();
     print_dec(bt_value);
     delay(1000);
   } */ 
 
-  // Assignment 2-B Call labinit()
-  /* labinit();
-  unsigned count = 0;
 
-  while (1) {
-  if (get_bt()) {
-      int sw = get_sw();
-      int sel = (sw >> 8) & 3; // move the 2 significant bits to the far right.
-      int val = sw & 0x3F; // the value we want to change it to
-      if (sel == 1)  {
-        if (val > 59) val = 59;
-          int bcd = ((val / 10) << 4) | (val % 10);
-          mytime = (mytime & 0xFFFF00) | bcd; // mask the relevant bits
-        } else if (sel == 2) {
-          if ( val > 59) val = 59;
-          int bcd = ((val / 10) << 4) | (val % 10);
-          mytime = (mytime & 0xFF00FF) | (bcd << 8);   // set minutes
-        } else if (sel == 3) {
-          if (val > 99) val = 99;
-          int hbcd = ((val/10)<<4) | (val%10); // local hour binary code. 
-          mytime = (mytime & 0x00FFFF) | (hbcd << 16);  // set hours
-          }
-  }
+  // Call labinit()
+  /* labinit(); */
 
-    if (TMR_STATUS & 1u) {
-    TMR_STATUS = 0;
-    if (++count >= 10) { // about 1 second has passed
-      count = 0;
-
-      unsigned prevminutes = (unsigned)(mytime >> 8) & 0xFF;
-      unsigned oldhour = (unsigned)(mytime >> 16) & 0xFF;
-
-      tick(&mytime);
-      unsigned newminutes = (unsigned)(mytime >> 8) & 0xFF;
-
-      if (prevminutes == 0x59 && newminutes == 0x00) {
-        if (suppress_wrap) { // handle the very first increment, ensure that we simply set it to zero.
-          suppress_wrap = 0;
-          mytime = (mytime & 0x00FFFF) | ((unsigned)oldhour << 16);
-        } else {
-          unsigned tens = (oldhour >> 4) & 0xF;
-          unsigned ones = oldhour & 0xF;
-
-          if (ones < 9){ 
-              ones++;
-          } else {
-            ones = 0; 
-            tens++;
-          }
-          unsigned hbcd = (tens << 4) | ones;
-          mytime = (mytime & 0x00FFFF) | (hbcd << 16);
-        }
-      }
-
-      time2string(textstring, mytime);
-      // display_string(textstring); // print to terminal and board
-      disp_str(textstring);
-    }
-  }
-} */
 
   // Assignment 1-A Enter a forever loop
   /* while (1) {
@@ -182,52 +124,89 @@ int main() {
 
 
   // Assignment 1H
-   while (1) {
-  if (get_bt()) {
-      int sw = get_sw();
-      int sel = (sw >> 8) & 3; // move the 2 significant bits to the far right.
-      int val = sw & 0x3F; // the value we want to change it to
-      if (sel == 1)  {
-        if (val > 59) val = 59;
-          int bcd = ((val / 10) << 4) | (val % 10);
-          mytime = (mytime & 0xFFFF00) | bcd; // mask the relevant bits
-        } else if (sel == 2) {
-          if ( val > 59) val = 59;
-          int bcd = ((val / 10) << 4) | (val % 10);
-          mytime = (mytime & 0xFF00FF) | (bcd << 8);   // set minutes
-        } else if (sel == 3) {
-          if (val > 99) val = 99;
-          int hbcd = ((val/10)<<4) | (val%10); // local hour binary code. 
-          mytime = (mytime & 0x00FFFF) | (hbcd << 16);  // set hours
-          }
-  }
-  time2string(textstring, mytime);
-  disp_str(textstring); 
-  unsigned prevminutes = (unsigned)(mytime >> 8) & 0xFF;
-  unsigned oldhour = (unsigned)(mytime >> 16) & 0xFF;
-  delay(1000);
-  tick(&mytime);
-  unsigned newminutes = (unsigned)(mytime >> 8) & 0xFF;
-  if (prevminutes == 0x59 && newminutes == 0x00) {
-    if (suppress_wrap) {
-      suppress_wrap = 0;
-      // undo tick's first-hour increment
-      mytime = (mytime & 0x00FFFF) | ((unsigned)oldhour << 16);
-    } else {
-    unsigned tens = (oldhour >> 4) & 0xF;
-    unsigned ones = oldhour & 0xF;
 
-    if (ones < 9){ 
-        ones++;
-    } else {
-      ones = 0; 
-      tens++;
-    }
-    unsigned hbcd = (tens << 4) | ones;
-    mytime = (mytime & 0x00FFFF) | (hbcd << 16);
+int initializing_count = 0;
+set_leds(0);
+
+while (1) {
+  int four_lsb = initializing_count & 0xf; // mask the 4 lsb.
+  set_leds(four_lsb);
+
+  tick(&mytime); // tick clock
+  time2string(textstring, mytime);
+  display_string(textstring);
+  delay(1000);
+  initializing_count++;
+
+  if (four_lsb == 0xF) { // if all 4 lowest lights are on, 1111, then reenable them and start another inf loop.
+    set_leds(0xf);
+
+    int sec = 0;
+    int min = 0;
+    int hr = 0;
+
+  while (1) {
+    int switch_update = 0;
+    if (get_bt()) { // get the state of the button
+      int two_msb = get_sw() >> 8; // shift the msb down to the bottom of the bit.
+      int eight_lsb = get_sw() & 0xff; // mask only leaving the 8 lsb.
+
+      switch (two_msb) { // 3 cases for lsb
+        case 0b01:
+        sec = eight_lsb;
+        if (sec > 59) {
+          sec = 59;
+        }
+        switch_update = 1;
+        break;
+        case 0b10:
+        min = eight_lsb;
+        if ( min > 59) {
+          min = 59;
+        }
+        switch_update = 1;
+        break;
+        case 0b11:
+        hr = eight_lsb;
+        if (hr > 99) {
+            hr = 99;
+        }
+        switch_update = 1;
+        break;
+        default:
+        break;
       }
     }
-  } 
+
+        delay(1000);
+        tick(&mytime);
+        time2string(textstring, mytime);
+        display_string(textstring);
+
+        set_displays(0, sec % 10);
+        set_displays(1, sec / 10);
+        set_displays(2, min % 10);
+        set_displays(3, min / 10);
+        set_displays(4, hr % 10);
+        set_displays(5, hr / 10);
+        
+        if (!switch_update) {
+          sec++;
+        }
+        if (sec > 59) {
+          sec = 0;
+          min++;
+        }
+        if (min > 59) {
+          min = 0;
+          hr++;
+        }
+        if (hr > 99) {
+          hr = 0;
+        }
+      }
+    }
+  }
 }
 
 

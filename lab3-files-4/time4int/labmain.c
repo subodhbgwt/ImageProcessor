@@ -72,7 +72,7 @@ void labinit(void)
   *TMR_STATUS = 0;
   *TMR_PERIODL = 0xC6BF;
   *TMR_PERIODH = 0x002D;
-  *TMR_CONTROL = 0x7;
+  *TMR_CONTROL = 0x7; // interrupt changes
   enable_interrupt();
 }
 
