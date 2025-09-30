@@ -57,6 +57,12 @@ _isr_routine:
 	addi t1, zero, 11
 	beq t0, t1, skip_init_args
 	csrr a0, mepc
+
+enable_interrupt:
+	csrsi mie, 16
+	csrsi mstatus, 3
+	jr ra
+
 skip_init_args:
 	jal handle_exception	
 	// Read the mepc
@@ -111,18 +117,6 @@ restore:
 
 	// Return from interrupt
 	mret
-
-enable_interrupt:
-	# mtvec
-	la t0, _isr_handler
-	csrw mtvec, t0
-
-	li t0, (1 << 11)
-	csrs mie, t0
-
-	li t0, (1 << 3)
-	csrs mstatus, t0
-	ret
 
 	/* This is where the application starts */
 _start: 

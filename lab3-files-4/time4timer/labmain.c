@@ -29,6 +29,7 @@ extern int nextprime( int );
 int mytime = 0x5957;
 char textstring[] = "text, more text, and even more text!";
 volatile unsigned timeoutcount = 0;
+volatile int suppress_wrap = 1;
 
 /* Below is the function that will be called when an interrupt is triggered. */
 void handle_interrupt(unsigned cause) 
@@ -111,57 +112,65 @@ int main() {
     delay(1000);
   } */ 
 
-  // Assignment 2-B Call labinit()
-  labinit();
+  // Assignment 2-C Call labinit()
+  /* labinit();
 
-   while (1) {
-    if (get_bt()) {
-        int sw = get_sw();
-        int sel = (sw >> 8) & 3; // move the 2 significant bits to the far right.
-        int val = sw & 0x3F; // the value we want to change it to
-        if (sel == 1)  {
-          if (val > 59) val = 59;
-            int bcd = ((val / 10) << 4) | (val % 10);
-            mytime = (mytime & 0xFFFF00) | bcd; // mask the relevant bits
-          } else if (sel == 2) {
-           if ( val > 59) val = 59;
-           int bcd = ((val / 10) << 4) | (val % 10);
-            mytime = (mytime & 0xFF00FF) | (bcd << 8);   // set minutes
-          } else if (sel == 3) {
-           if (val > 99) val = 99;
-           int hbcd = ((val/10)<<4) | (val%10); // local hour binary code. 
-           mytime = (mytime & 0x00FFFF) | (hbcd << 16);  // set hours
-           }
-    }
-    unsigned prevminutes = (unsigned)(mytime >> 8) & 0xFF;
-    unsigned oldhour = (unsigned)(mytime >> 16) & 0xFF;
+  while (1) {
+  if (get_bt()) {
+      int sw = get_sw();
+      int sel = (sw >> 8) & 3; // move the 2 significant bits to the far right.
+      int val = sw & 0x3F; // the value we want to change it to
+      if (sel == 1)  {
+        if (val > 59) val = 59;
+          int bcd = ((val / 10) << 4) | (val % 10);
+          mytime = (mytime & 0xFFFF00) | bcd; // mask the relevant bits
+        } else if (sel == 2) {
+          if ( val > 59) val = 59;
+          int bcd = ((val / 10) << 4) | (val % 10);
+          mytime = (mytime & 0xFF00FF) | (bcd << 8);   // set minutes
+        } else if (sel == 3) {
+          if (val > 99) val = 99;
+          int hbcd = ((val/10)<<4) | (val%10); // local hour binary code. 
+          mytime = (mytime & 0x00FFFF) | (hbcd << 16);  // set hours
+          }
+  }
 
-     if (TMR_STATUS & 1u) {
-      TMR_STATUS = 0;
-      if (++timeoutcount >= 10) { // about 1 second has passed
-        timeoutcount = 0;
-        time2string(textstring, mytime);  
-         // display_string(textstring); // print to terminal and board
-        disp_str(textstring);
-        tick(&mytime);
+    if (TMR_STATUS & 1u) {
+    TMR_STATUS = 0;
+    if (++timeoutcount >= 10) { // about 1 second has passed
+      timeoutcount = 0;
+
+      unsigned prevminutes = (unsigned)(mytime >> 8) & 0xFF;
+      unsigned oldhour = (unsigned)(mytime >> 16) & 0xFF;
+
+      tick(&mytime);
+      unsigned newminutes = (unsigned)(mytime >> 8) & 0xFF;
+
+      if (prevminutes == 0x59 && newminutes == 0x00) {
+        if (suppress_wrap) { // handle the very first increment, ensure that we simply set it to zero.
+          suppress_wrap = 0;
+          mytime = (mytime & 0x00FFFF) | ((unsigned)oldhour << 16);
+        } else {
+          unsigned tens = (oldhour >> 4) & 0xF;
+          unsigned ones = oldhour & 0xF;
+
+          if (ones < 9){ 
+              ones++;
+          } else {
+            ones = 0; 
+            tens++;
+          }
+          unsigned hbcd = (tens << 4) | ones;
+          mytime = (mytime & 0x00FFFF) | (hbcd << 16);
+        }
       }
 
-    unsigned newminutes = (unsigned)(mytime >> 8) & 0xFF;
-    if (prevminutes == 0x59 && newminutes == 0x00) {
-      unsigned tens = (oldhour >> 4) & 0xF;
-      unsigned ones = oldhour & 0xF;
-
-      if (ones < 9){ 
-         ones++;
-      } else {
-        ones = 0; 
-        tens++;
-      }
-      unsigned hbcd = (tens << 4) | ones;
-      mytime = (mytime & 0x00FFFF) | (hbcd << 16);
+      time2string(textstring, mytime);
+      // display_string(textstring); // print to terminal and board
+      disp_str(textstring);
     }
   }
-}
+} */
 
   // Assignment 1-A Enter a forever loop
   /* while (1) {
@@ -171,46 +180,54 @@ int main() {
     tick( &mytime );     // Ticks the clock once
   } */
 
-  /* while (1) {
-    if (get_bt()) {
-        int sw = get_sw();
-        int sel = (sw >> 8) & 3; // move the 2 significant bits to the far right.
-        int val = sw & 0x3F; // the value we want to change it to
-        if (sel == 1)  {
-          if (val > 59) val = 59;
-            int bcd = ((val / 10) << 4) | (val % 10);
-            mytime = (mytime & 0xFFFF00) | bcd; // mask the relevant bits
-          } else if (sel == 2) {
-           if ( val > 59) val = 59;
-           int bcd = ((val / 10) << 4) | (val % 10);
-            mytime = (mytime & 0xFF00FF) | (bcd << 8);   // set minutes
-          } else if (sel == 3) {
-           if (val > 99) val = 99;
-           int hbcd = ((val/10)<<4) | (val%10); // local hour binary code. 
-           mytime = (mytime & 0x00FFFF) | (hbcd << 16);  // set hours
-           }
-    }
-    time2string(textstring, mytime);  
-    disp_str(textstring); 
-    unsigned prevminutes = (unsigned)(mytime >> 8) & 0xFF;
-    unsigned oldhour = (unsigned)(mytime >> 16) & 0xFF;
-    delay(1000);
-    tick(&mytime);
-    unsigned newminutes = (unsigned)(mytime >> 8) & 0xFF;
-    if (prevminutes == 0x59 && newminutes == 0x00) {
-      unsigned tens = (oldhour >> 4) & 0xF;
-      unsigned ones = oldhour & 0xF;
+  // Assignment 1H
+  while (1) {
+  if (get_bt()) {
+      int sw = get_sw();
+      int sel = (sw >> 8) & 3; // move the 2 significant bits to the far right.
+      int val = sw & 0x3F; // the value we want to change it to
+      if (sel == 1)  {
+        if (val > 59) val = 59;
+          int bcd = ((val / 10) << 4) | (val % 10);
+          mytime = (mytime & 0xFFFF00) | bcd; // mask the relevant bits
+        } else if (sel == 2) {
+          if ( val > 59) val = 59;
+          int bcd = ((val / 10) << 4) | (val % 10);
+          mytime = (mytime & 0xFF00FF) | (bcd << 8);   // set minutes
+        } else if (sel == 3) {
+          if (val > 99) val = 99;
+          int hbcd = ((val/10)<<4) | (val%10); // local hour binary code. 
+          mytime = (mytime & 0x00FFFF) | (hbcd << 16);  // set hours
+          }
+  }
+  time2string(textstring, mytime);
+  disp_str(textstring); 
+  unsigned prevminutes = (unsigned)(mytime >> 8) & 0xFF;
+  unsigned oldhour = (unsigned)(mytime >> 16) & 0xFF;
+  delay(1000);
+  tick(&mytime);
+  unsigned newminutes = (unsigned)(mytime >> 8) & 0xFF;
+  if (prevminutes == 0x59 && newminutes == 0x00) {
+    if (suppress_wrap) {
+      suppress_wrap = 0;
+      // undo tick's first-hour increment
+      mytime = (mytime & 0x00FFFF) | ((unsigned)oldhour << 16);
+    } else {
+    unsigned tens = (oldhour >> 4) & 0xF;
+    unsigned ones = oldhour & 0xF;
 
-      if (ones < 9){ 
-         ones++;
-      } else {
-        ones = 0; 
-        tens++;
-      }
-      unsigned hbcd = (tens << 4) | ones;
-      mytime = (mytime & 0x00FFFF) | (hbcd << 16);
+    if (ones < 9){ 
+        ones++;
+    } else {
+      ones = 0; 
+      tens++;
     }
-  } */
+    unsigned hbcd = (tens << 4) | ones;
+    mytime = (mytime & 0x00FFFF) | (hbcd << 16);
+      }
+    }
+  }
 }
+
 
 
