@@ -94,26 +94,26 @@ int main() {
     set_displays(i, 0x2); // 0xFF turns all off, 0x00 turns all on. Reverse logic, zeroes enable them. 
   } */
 
-   /* ASSIGNMENT 1-F 
-   while (1) {
+   // ASSIGNMENT 1-F 
+  /* while (1) {
     int sw_value = get_sw();
     print_dec(sw_value);
     delay(1000);
   } */
 
-  /* ASSIGNMENT 1-G 
-  while (1) {
+  // ASSIGNMENT 1-G 
+  /* while (1) {
     int bt_value = get_bt();
     print_dec(bt_value);
     delay(1000);
-  } */ 
+  } */
 
 
-  // Call labinit()
+  // Call labinit() ignore for task 1
   /* labinit(); */
 
 
-  // Assignment 1-A Enter a forever loop
+  // Assignment 1A Enter a forever loop
   /* while (1) {
     time2string( textstring, mytime ); // Converts mytime to string
     display_string( textstring ); //Print out the string 'textstring'
@@ -124,7 +124,7 @@ int main() {
 
   // Assignment 1H
 
-int initializing_count = 0;
+int initializing_count = 0; // new implementation of the leds instead of the for loop to ensure they do it exactly every second
 set_leds(0);
 
 while (1) {

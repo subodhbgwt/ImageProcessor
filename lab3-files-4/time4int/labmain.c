@@ -70,7 +70,7 @@ void handle_interrupt(unsigned cause) {
 void labinit(void)
 {
   *TMR_STATUS = 0;
-  *TMR_PERIODL = 0xC6BF;
+  *TMR_PERIODL = 0xC6BF; // 2999999 corresponds to 1 second
   *TMR_PERIODH = 0x002D;
   *TMR_CONTROL = 0x7; // interrupt changes
   enable_interrupt();

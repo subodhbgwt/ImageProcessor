@@ -34,7 +34,7 @@ void handle_interrupt(unsigned cause)
 void labinit(void)
 {
   *TMR_STATUS  = 0;          // reset timer
-  *TMR_PERIODL = 0xC6BF; // 299999, 3 million minus 1
+  *TMR_PERIODL = 0xC6BF; // 2999999, 3 million minus 1
   *TMR_PERIODH = 0x002D; 
   *TMR_CONTROL = 0x6; // set to CONT mode and start timer
 }
