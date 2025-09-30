@@ -59,9 +59,13 @@ _isr_routine:
 	csrr a0, mepc
 
 enable_interrupt:
-	csrsi mie, 16
-	csrsi mstatus, 3
-	jr ra
+	li t0, (1 << 16) ## set bit 16 in mie to 1, enables the boards timer as an interrupt source
+	csrs mie, t0
+
+	li t0, (1 << 3) ## set bit 3 in mstatus to 1, enables global interrupts
+	csrs mstatus 3 
+	
+	ret
 
 skip_init_args:
 	jal handle_exception	
