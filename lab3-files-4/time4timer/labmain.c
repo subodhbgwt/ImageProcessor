@@ -23,7 +23,7 @@ volatile unsigned int *TMR_PERIODH = ((volatile unsigned int *)(TIMER_BASE + 0x0
 
 int mytime = 0x5957;
 char textstring[] = "text, more text, and even more text!";
-int timeoutcount = 0;
+int timeoutcount = 0; // global timeout count
 
 /* Below is the function that will be called when an interrupt is triggered. */
 void handle_interrupt(unsigned cause) 
@@ -33,22 +33,22 @@ void handle_interrupt(unsigned cause)
 
 void labinit(void)
 {
-  *TMR_STATUS  = 0;          // reset timer
-  *TMR_PERIODL = 0xC6BF; // 2999999, 3 million minus 1
-  *TMR_PERIODH = 0x002D; 
-  *TMR_CONTROL = 0x6; // set to CONT mode and start timer
+  *TMR_STATUS  = 0; // reset timer from any other state it might have
+  *TMR_PERIODL = 0xC6BF; // timer period register split into 2 16 bits, low and high.
+  *TMR_PERIODH = 0x002D; // together its setting the period of the timer to be 2999999. Since we have a 30Mhz clock, one full run-through will take 100ms
+  *TMR_CONTROL = 0x6; // binary 110, bit 0 is ito, bit 1 is continuous, and bit 2 is start/stop. We are starting a continuous timer.
 }
 
 void set_leds(int led_mask) {
-  volatile int *LED_REG = (volatile int*)0x04000000;
+  volatile int *LED_REG = (volatile int*)0x04000000; // create a pointer to the memory address of the led registry.
   *LED_REG = led_mask & 0x3ff; // leave the 10 lsb
 }
 
 void set_displays(int display_number, int value) {
-  int disp_offset = 0x04000050 + (0x10*display_number);
-  volatile int *DISPLAY_REG = (volatile int*)disp_offset;
+  int disp_offset = 0x04000050 + (0x10*display_number); // from zero to five (6 displays)
+  volatile int *DISPLAY_REG = (volatile int*)disp_offset; // pointer to the memory address of the display.
 
-  switch (value) {
+  switch (value) { // cases for which output we want on the display. highest bit is the dot, 1 is off. 
     case 0:
     *DISPLAY_REG = 0b11000000;
     break;
@@ -87,7 +87,7 @@ void set_displays(int display_number, int value) {
 
 int get_sw(void) { // print values corresponding to which switch is on in decimal form. 
   volatile unsigned int *SWITCH_REG = (volatile unsigned int *)0x04000010;
-  return *SWITCH_REG & 0x3ff;
+  return *SWITCH_REG & 0x3ff; // return the 10 lsb
 }
 
 int get_bt(void) { // print the least significant bit that corresponds to whether the button is pressed or not
@@ -99,25 +99,25 @@ int get_bt(void) { // print the least significant bit that corresponds to whethe
 int main() {
 
   // Assignment 2-C Call labinit() with a global count
-  labinit();
+  labinit(); // start the calls for the hardware timer
 
   int initializing_count = 0;
   set_leds(0);
 
   while (1) {
     int four_lsb = initializing_count & 0xf; // mask the 4 lsb.
-    set_leds(four_lsb);
+    set_leds(four_lsb); // turn on each consecutive led
 
-    tick(&mytime); // tick clock
+    tick(&mytime); // tick terminal clock even though are physical one hasn't started.
     time2string(textstring, mytime);
     display_string(textstring);
     delay(1000);
-    initializing_count++;
+    initializing_count++; 
 
     if (four_lsb == 0xF) { // if all 4 lowest lights are on, 1111, then reenable them and start another inf loop.
       set_leds(0xf);
 
-      int sec = 0;
+      int sec = 0; // create our own local timer since the time2string they gave doesnt have hours
       int min = 0;
       int hr = 0;
 
@@ -147,25 +147,25 @@ int main() {
             if (hr > 99) {
                hr = 99;
             }
-            switch_update = 1;
+            switch_update = 1; // for every case where we update it, increment switch upd.
             break;
             default:
             break;
           }
         }
 
-        if (*TMR_STATUS & 1) {
-          *TMR_STATUS = 0;
-          timeoutcount++;
+        if (*TMR_STATUS & 1) { // here we check if timer status is true, checking the lsb.
+          *TMR_STATUS = 0; // if it is we dereference and set to zero and increment timeoutcount by one.
+          timeoutcount++; // increment timeoutcount then, the global var. Each one of these takes 100ms
 
-          if (timeoutcount >= 10) {
+          if (timeoutcount >= 10) { // 10 x 100ms = 1 second between each print.
             timeoutcount = 0; // every 10 ticks reset timeoutcount.
 
-            tick(&mytime);
+            tick(&mytime); // tick the time every second. Now using the timer, and each second we update the display.
             time2string(textstring, mytime);
             display_string(textstring);
 
-            set_displays(0, sec % 10);
+            set_displays(0, sec % 10); // divide each part of the time into tens and ones, and print them respectively.
             set_displays(1, sec / 10);
             set_displays(2, min % 10);
             set_displays(3, min / 10);
@@ -173,9 +173,9 @@ int main() {
             set_displays(5, hr / 10);
             
             if (!switch_update) {
-              sec++;
+              sec++; // if we have not switched the time, we increment seconds. Otherwise it waits.
             }
-            if (sec > 59) {
+            if (sec > 59) { // simple logic about wrapping.
               sec = 0;
               min++;
             }

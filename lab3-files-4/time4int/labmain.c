@@ -13,7 +13,7 @@ extern void tick(int*);
 extern void delay(int);
 extern int nextprime( int );
 extern void enable_interrupt(void);
-void set_displays(int display_number, int value);
+void set_displays(int display_number, int value); // here we need to make a template of our function so it doesn't complain.
 
 #define TIMER_BASE 0x04000020
 volatile unsigned int *TMR_STATUS = ((volatile unsigned int *)(TIMER_BASE + 0x00));
@@ -21,7 +21,8 @@ volatile unsigned int *TMR_CONTROL = ((volatile unsigned int *)(TIMER_BASE + 0x0
 volatile unsigned int *TMR_PERIODL = ((volatile unsigned int *)(TIMER_BASE + 0x08));
 volatile unsigned int *TMR_PERIODH = ((volatile unsigned int *)(TIMER_BASE + 0x0C));
 
-volatile int sec = 0;
+// global instantiation of time because we don't need to use display
+volatile int sec = 0; 
 volatile int min = 0;
 volatile int hr = 0;
 
@@ -31,13 +32,13 @@ char textstring[] = "text, more text, and even more text!";
 int timeoutcount = 0;
 
 /* Below is the function that will be called when an interrupt is triggered. */
-void handle_interrupt(unsigned cause) {
+void handle_interrupt(unsigned cause) { // now our interrupt directly handles ticking the time AND setting the displays along with the wrapping
 
-  if (cause == 16) {
-      *TMR_STATUS = 0;
-      timeoutcount++;
+  if (cause == 16) { // the cause looks for 16 because in mcause in our boot, we set it to 16 whenever an interrupt takes place. 
+      *TMR_STATUS = 0; // same resetting of the timer status as before
+      timeoutcount++; // increment the timeoutcount everytime we experience an interruption with cause = 16
 
-      if (timeoutcount >= 10) {
+      if (timeoutcount >= 10) { // when its done 10 times, 1 second has passed, i.e tick the time and set the displays.
         timeoutcount = 0;
 
         tick(&mytime);
@@ -69,11 +70,11 @@ void handle_interrupt(unsigned cause) {
 
 void labinit(void)
 {
-  *TMR_STATUS = 0;
-  *TMR_PERIODL = 0xC6BF; // 2999999 corresponds to 1 second
+  *TMR_STATUS = 0; // same as before
+  *TMR_PERIODL = 0xC6BF; // low and high period 16 bits, same as before
   *TMR_PERIODH = 0x002D;
-  *TMR_CONTROL = 0x7; // interrupt changes
-  enable_interrupt();
+  *TMR_CONTROL = 0x7; // now 111 in binary, so we are also enabling bit 0, i.e for interrupts.
+  enable_interrupt(); // now we are actively calling on the enable interrupt which does what its called in boot.S. Calls handle interrupt. When interrupt called 10 times we get the increment in time and timeoutcount back down.
 }
 
 void set_leds(int led_mask) {
@@ -135,7 +136,7 @@ int get_bt(void) { // print the least significant bit that corresponds to whethe
 /* Your code goes into main as well as any needed functions. */
 int main() {
   // Assignment 3C
-   labinit();
+   labinit(); // our labinit handles all the hard work now and looks for interrupts. 10 interrupts and we tick.
    while (1) {
     print("Prime: ");
     prime = nextprime(prime);

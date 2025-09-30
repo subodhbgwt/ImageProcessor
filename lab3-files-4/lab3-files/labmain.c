@@ -27,15 +27,15 @@ void labinit(void)
 
 
 void set_leds(int led_mask) {
-  volatile int *LED_REG = (volatile int*)0x04000000;
+  volatile int *LED_REG = (volatile int*)0x04000000; // create a pointer to the memory address of the led registry.
   *LED_REG = led_mask & 0x3ff; // leave the 10 lsb
 }
 
 void set_displays(int display_number, int value) {
-  int disp_offset = 0x04000050 + (0x10*display_number);
-  volatile int *DISPLAY_REG = (volatile int*)disp_offset;
+  int disp_offset = 0x04000050 + (0x10*display_number); // from zero to five (6 displays)
+  volatile int *DISPLAY_REG = (volatile int*)disp_offset; // pointer to the memory address of the display.
 
-  switch (value) {
+  switch (value) { // cases for which output we want on the display. highest bit is the dot, 1 is off. 
     case 0:
     *DISPLAY_REG = 0b11000000;
     break;
@@ -74,7 +74,7 @@ void set_displays(int display_number, int value) {
 
 int get_sw(void) { // print values corresponding to which switch is on in decimal form. 
   volatile unsigned int *SWITCH_REG = (volatile unsigned int *)0x04000010;
-  return *SWITCH_REG & 0x3ff;
+  return *SWITCH_REG & 0x3ff; // return the 10 lsb
 }
 
 int get_bt(void) { // print the least significant bit that corresponds to whether the button is pressed or not
@@ -108,11 +108,6 @@ int main() {
     delay(1000);
   } */
 
-
-  // Call labinit() ignore for task 1
-  /* labinit(); */
-
-
   // Assignment 1A Enter a forever loop
   /* while (1) {
     time2string( textstring, mytime ); // Converts mytime to string
@@ -140,7 +135,7 @@ while (1) {
   if (four_lsb == 0xF) { // if all 4 lowest lights are on, 1111, then reenable them and start another inf loop.
     set_leds(0xf);
 
-    int sec = 0;
+    int sec = 0; // create our own local timer since the time2string they gave doesnt have hours
     int min = 0;
     int hr = 0;
 
@@ -170,19 +165,19 @@ while (1) {
         if (hr > 99) {
             hr = 99;
         }
-        switch_update = 1;
+        switch_update = 1; // for every case where we update it, increment switch upd.
         break;
         default:
         break;
       }
     }
 
-        delay(1000);
+        delay(1000); // a simple delay for around a second before ticking and showing to the terminal
         tick(&mytime);
         time2string(textstring, mytime);
         display_string(textstring);
 
-        set_displays(0, sec % 10);
+        set_displays(0, sec % 10); // divide each part of the time into tens and ones, and print them respectively.
         set_displays(1, sec / 10);
         set_displays(2, min % 10);
         set_displays(3, min / 10);
@@ -190,9 +185,9 @@ while (1) {
         set_displays(5, hr / 10);
         
         if (!switch_update) {
-          sec++;
+          sec++; // if we have not switched the time, we increment seconds. Otherwise it waits.
         }
-        if (sec > 59) {
+        if (sec > 59) { // simple logic about wrapping.
           sec = 0;
           min++;
         }
