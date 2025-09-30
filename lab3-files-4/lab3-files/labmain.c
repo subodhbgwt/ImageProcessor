@@ -15,7 +15,6 @@ extern int nextprime( int );
 
 int mytime = 0x5957;
 char textstring[] = "text, more text, and even more text!";
-volatile int suppress_wrap = 1;
 
 /* Below is the function that will be called when an interrupt is triggered. */
 void handle_interrupt(unsigned cause) 

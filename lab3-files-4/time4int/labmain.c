@@ -28,7 +28,7 @@ volatile int hr = 0;
 int prime = 1234567;
 int mytime = 0x5957;
 char textstring[] = "text, more text, and even more text!";
-volatile unsigned timeoutcount = 0;
+int timeoutcount = 0;
 
 /* Below is the function that will be called when an interrupt is triggered. */
 void handle_interrupt(unsigned cause) {
