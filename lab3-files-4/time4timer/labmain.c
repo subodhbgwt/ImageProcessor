@@ -125,25 +125,25 @@ int main() {
         int switch_update = 0;
         if (get_bt()) { // get the state of the button
           int two_msb = get_sw() >> 8; // shift the msb down to the bottom of the bit.
-          int eight_lsb = get_sw() & 0xff; // mask only leaving the 8 lsb.
+          int six_lsb = get_sw() & 0x3f; // mask only leaving the 6 lsb.
 
           switch (two_msb) { // 3 cases for lsb
             case 0b01:
-            sec = eight_lsb;
+            sec = six_lsb;
             if (sec > 59) {
               sec = 59;
             }
             switch_update = 1;
             break;
             case 0b10:
-            min = eight_lsb;
+            min = six_lsb;
             if ( min > 59) {
               min = 59;
             }
             switch_update = 1;
             break;
             case 0b11:
-            hr = eight_lsb;
+            hr = six_lsb;
             if (hr > 99) {
                hr = 99;
             }
