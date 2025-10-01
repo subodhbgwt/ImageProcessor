@@ -90,12 +90,13 @@ int main() {
     delay(700);
   } */
 
-  /* for (int i = 0; i <= 5; i++) {
-    set_displays(i, 0x2); // 0xFF turns all off, 0x00 turns all on. Reverse logic, zeroes enable them. 
+  // ASSIGNMENT 1-E
+   /* for (int i = 0; i <= 5; i++) {
+    set_displays(i, 2);
   } */
 
    // ASSIGNMENT 1-F 
-  /* while (1) {
+   /* while (1) {
     int sw_value = get_sw();
     print_dec(sw_value);
     delay(1000);
@@ -108,18 +109,17 @@ int main() {
     delay(1000);
   } */
 
-  // Assignment 1A Enter a forever loop
+  // ASSIGNMENT 1A Enter a forever loop
   /* while (1) {
     time2string( textstring, mytime ); // Converts mytime to string
     display_string( textstring ); //Print out the string 'textstring'
-    delay( 700 );          // Delays 1 sec (adjust this value)
+    delay( 1000 );          // Delays 1 sec (adjust this value)
     tick( &mytime );     // Ticks the clock once
   } */
 
 
   // Assignment 1H
-
-int initializing_count = 0; // new implementation of the leds instead of the for loop to ensure they do it exactly every second
+/* int initializing_count = 0; // new implementation of the leds instead of the for loop to ensure they do it exactly every second
 set_leds(0);
 
 while (1) {
@@ -143,7 +143,7 @@ while (1) {
     int switch_update = 0;
     if (get_bt()) { // get the state of the button
       int two_msb = get_sw() >> 8; // shift the msb down to the bottom of the bit.
-      int six_lsb = get_sw() & 0x3f; // mask only leaving the 8 lsb.
+      int six_lsb = get_sw() & 0x3f; // mask only leaving the 6 lsb.
 
       switch (two_msb) { // 3 cases for lsb
         case 0b01:
@@ -200,7 +200,7 @@ while (1) {
         }
       }
     }
-  }
+  } */
 }
 
 
