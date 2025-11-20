@@ -4,7 +4,6 @@
 #include "conv.h"
 #include "dtekv-lib.h"
 #include "imageproc.h"
-#include "images.h"
 #include "vga.h"
 
 /* Reuse Lab 3 I/O + timing functions (defined in labmain.c / timetemplate.S) */
@@ -14,30 +13,37 @@ extern int  get_bt(void);
 extern void delay(int);
 
 /* --------------------------------------------------------------------------
-   Send image as ASCII PGM over JTAG UART
-   -------------------------------------------------------------------------- */
+   Upload/download configuration (UART via dtekv-upload / dtekv-download)
 
-static void send_image_pgm(const Image *img) {
-    print("\n--- BEGIN_PGM ---\n");
-    print("P2\n");                        // PGM magic
-    print_dec(img->w);
-    print(" ");
-    print_dec(img->h);
-    print("\n255\n");                      // max gray
+   We assume a 64x64 8-bit grayscale RAW file (4096 bytes) for upload/download.
+   Pixels are in row-major order, one byte per pixel.
 
-    for (uint16_t y = 0; y < img->h; ++y) {
-        for (uint16_t x = 0; x < img->w; ++x) {
-            uint8_t v = img->data[y * img->w + x];
-            print_dec(v);
-            if (x + 1 < img->w) {
-                print(" ");
-            }
-        }
-        print("\n");
-    }
+   Chosen RAM addresses (must fit your memory map):
 
-    print("--- END_PGM ---\n");
-}
+     INPUT_BASE_ADDR  = 0x01000000  (for dtekv-upload)
+     OUTPUT_BASE_ADDR = 0x01010000  (for dtekv-download)
+
+   Example host commands:
+
+     # upload input image
+     dtekv-upload input.raw 0x01000000
+
+     # after pressing KEY0 and LED9 is lit, download result
+     dtekv-download output.raw 0x01010000 4096
+ -------------------------------------------------------------------------- */
+
+#define UPLOAD_W         64u
+#define UPLOAD_H         64u
+#define BYTES_PER_PIXEL  1u
+
+#define UPLOAD_PIXELS    (UPLOAD_W * UPLOAD_H)           /* 4096 */
+#define UPLOAD_BYTES     (UPLOAD_PIXELS * BYTES_PER_PIXEL)
+
+#define INPUT_BASE_ADDR   0x01000000u
+#define OUTPUT_BASE_ADDR  0x01010000u
+
+#define INPUT_MEM   ((volatile uint8_t *)INPUT_BASE_ADDR)
+#define OUTPUT_MEM  ((volatile uint8_t *)OUTPUT_BASE_ADDR)
 
 /* --------------------------------------------------------------------------
    Image buffers
@@ -67,31 +73,57 @@ static uint32_t img_checksum(const Image *img) {
     return sum;
 }
 
-static void load_builtin_image(int index, Image *dst) {
-    if (index < 0 || index >= num_builtin_images) {
-        index = 0;
-    }
+/* --------------------------------------------------------------------------
+   Upload/download backend (dtekv-upload / dtekv-download)
+   -------------------------------------------------------------------------- */
 
-    const ImageDef *src = &builtin_images[index];
+/* Load 64x64 RAW grayscale from INPUT_MEM into img_in */
+static void load_input_image_from_upload(Image *img) {
+    img->w = (uint16_t)UPLOAD_W;
+    img->h = (uint16_t)UPLOAD_H;
 
-    dst->w = src->w;
-    dst->h = src->h;
+    uint32_t n = (uint32_t)UPLOAD_PIXELS;  /* always 4096 for now */
 
-    uint32_t n = (uint32_t)src->w * (uint32_t)src->h;
     for (uint32_t i = 0; i < n; ++i) {
-        dst->data[i] = src->data[i];
+        img->data[i] = INPUT_MEM[i];
     }
 }
 
-static void init_input_image(Image *img, uint32_t sw) {
-    /* Example: use SW7:6 to select which built-in image to use */
-    int idx = (int)((sw >> 6) & 0x3u);  // 0..3
-    load_builtin_image(idx, img);
+/* Save processed image to OUTPUT_MEM so host can dtekv-download it */
+static void save_output_image_to_download(const Image *img) {
+    uint32_t n = (uint32_t)img->w * (uint32_t)img->h;
+
+    /* Safety: clamp to 64x64 if something goes weird */
+    if (n > (uint32_t)UPLOAD_PIXELS) {
+        n = (uint32_t)UPLOAD_PIXELS;
+    }
+
+    for (uint32_t i = 0; i < n; ++i) {
+        OUTPUT_MEM[i] = img->data[i];
+    }
 }
 
 /* --------------------------------------------------------------------------
    Switch → filter/size/chaining mapping
    -------------------------------------------------------------------------- */
+
+/*
+   Interpretation of switches (SWx = physical switch x):
+
+   SW1:0 = filter 1 selection (2 bits)
+   SW3:2 = filter 2 selection (2 bits)
+   SW4   = chain enable (0 = only F1, 1 = F1 -> F2)
+   SW5   = size bit: 0 = 3x3, 1 = 5x5 (Gauss uses 5x5; others ignore size)
+   SW8   = if set, force filter1 = EMBOSS (override SW1:0)
+
+   (SW7:6, SW9, etc. are currently unused.)
+
+   Mapping of 2-bit codes to FilterType:
+     00 -> FILTER_IDENTITY
+     01 -> FILTER_SHARPEN
+     10 -> FILTER_GAUSS   (5x5 Gaussian)
+     11 -> FILTER_EDGE
+*/
 
 typedef struct {
     FilterType f1;
@@ -140,11 +172,21 @@ void imageproc_main(void) {
     uint32_t last_sw = 0xFFFFFFFFu;
     int last_bt = 0;
 
-    print("Image processing demo starting (Lab3 base)...\n");
-
-    /* Initialize the input image once, based on switches at startup */
-    uint32_t sw0 = (uint32_t)get_sw();
-    init_input_image(&img_in, sw0);
+    print("Image processing demo (upload + VGA + UART, fixed 64x64)...\n");
+    print("Switch map:\n");
+    print("  SW1:0  = Filter 1\n");
+    print("  SW3:2  = Filter 2\n");
+    print("  SW4    = Chain (0=F1 only, 1=F1->F2)\n");
+    print("  SW5    = Kernel size (0=3x3, 1=5x5)\n");
+    print("  SW8    = Emboss override for Filter 1\n");
+    print("  (Other switches unused for now)\n");
+    print("\n");
+    print("Upload/download usage:\n");
+    print("  dtekv-upload input.raw 0x01000000   # 64x64 RAW grayscale (4096 bytes)\n");
+    print("  [set filters with switches]\n");
+    print("  [press KEY0 once]\n");
+    print("  dtekv-download output.raw 0x01010000 4096\n");
+    print("\n");
 
     while (1) {
         uint32_t sw = (uint32_t)get_sw();
@@ -181,6 +223,9 @@ void imageproc_main(void) {
                 print("Filter 2: [disabled]\n");
             }
 
+            /* Load input image from uploaded buffer */
+            load_input_image_from_upload(&img_in);
+
             /* First filter: img_in -> img_tmp */
             const Kernel *k1 = get_kernel(sel.f1, sel.size1);
             convolve(&img_in, &img_tmp, k1);
@@ -199,11 +244,11 @@ void imageproc_main(void) {
             print_hex32(sum);
             print("\n");
 
-            /* Send processed image back to PC as PGM */
-            send_image_pgm(&img_out);
+            /* Save processed image to RAM for dtekv-download */
+            save_output_image_to_download(&img_out);
 
-            /* NEW: draw processed image to VGA */
-            vga_clear(0);                         // clear to black first (optional)
+            /* Draw processed image on VGA screen */
+            vga_clear(0);
             vga_draw_image_centered(&img_out);
 
             /* Turn on LED9 as "done" flag, plus preserve switch bits */
