@@ -34,7 +34,6 @@ void convolve(const Image *src, Image *dst, const Kernel *k) {
             }
 
             if (k->norm > 1) {
-                /* rounded division */
                 if (acc >= 0)
                     acc = (acc + k->norm / 2) / k->norm;
                 else

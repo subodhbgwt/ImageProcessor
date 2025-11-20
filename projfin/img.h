@@ -3,7 +3,6 @@
 
 #include <stdint.h>
 
-/* Maximum image size (you can change later if needed) */
 #define MAX_W 160
 #define MAX_H 120
 
