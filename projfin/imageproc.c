@@ -15,7 +15,7 @@ extern void delay(int);
 /* --------------------------------------------------------------------------
    Upload/download configuration (UART via dtekv-upload / dtekv-download)
 
-   We assume a 64x64 8-bit grayscale RAW file (4096 bytes) for upload/download.
+   We assume a 320x240 8-bit grayscale RAW file (76800 bytes) for upload/download.
    Pixels are in row-major order, one byte per pixel.
 
    Chosen RAM addresses (must fit your memory map):
@@ -29,14 +29,14 @@ extern void delay(int);
      dtekv-upload input.raw 0x01000000
 
      # after pressing KEY0 and LED9 is lit, download result
-     dtekv-download output.raw 0x01010000 4096
+     dtekv-download output.raw 0x01010000 76800
  -------------------------------------------------------------------------- */
 
-#define UPLOAD_W         64u
-#define UPLOAD_H         64u
+#define UPLOAD_W         320u
+#define UPLOAD_H         240u
 #define BYTES_PER_PIXEL  1u
 
-#define UPLOAD_PIXELS    (UPLOAD_W * UPLOAD_H)           /* 4096 */
+#define UPLOAD_PIXELS    (UPLOAD_W * UPLOAD_H)           /* 76800 */
 #define UPLOAD_BYTES     (UPLOAD_PIXELS * BYTES_PER_PIXEL)
 
 #define INPUT_BASE_ADDR   0x01000000u
@@ -77,12 +77,12 @@ static uint32_t img_checksum(const Image *img) {
    Upload/download backend (dtekv-upload / dtekv-download)
    -------------------------------------------------------------------------- */
 
-/* Load 64x64 RAW grayscale from INPUT_MEM into img_in */
+/* Load 320x240 RAW grayscale from INPUT_MEM into img_in */
 static void load_input_image_from_upload(Image *img) {
     img->w = (uint16_t)UPLOAD_W;
     img->h = (uint16_t)UPLOAD_H;
 
-    uint32_t n = (uint32_t)UPLOAD_PIXELS;  /* always 4096 for now */
+    uint32_t n = (uint32_t)UPLOAD_PIXELS;  /* always 76800 for now */
 
     for (uint32_t i = 0; i < n; ++i) {
         img->data[i] = INPUT_MEM[i];
@@ -93,7 +93,7 @@ static void load_input_image_from_upload(Image *img) {
 static void save_output_image_to_download(const Image *img) {
     uint32_t n = (uint32_t)img->w * (uint32_t)img->h;
 
-    /* Safety: clamp to 64x64 if something goes weird */
+    /* Safety: clamp to 320x240 if something goes weird */
     if (n > (uint32_t)UPLOAD_PIXELS) {
         n = (uint32_t)UPLOAD_PIXELS;
     }
@@ -172,7 +172,7 @@ void imageproc_main(void) {
     uint32_t last_sw = 0xFFFFFFFFu;
     int last_bt = 0;
 
-    print("Image processing demo (upload + VGA + UART, fixed 64x64)...\n");
+    print("Image processing demo (upload + VGA + UART, fixed 320x240)...\n");
     print("Switch map:\n");
     print("  SW1:0  = Filter 1\n");
     print("  SW3:2  = Filter 2\n");
@@ -182,10 +182,10 @@ void imageproc_main(void) {
     print("  (Other switches unused for now)\n");
     print("\n");
     print("Upload/download usage:\n");
-    print("  dtekv-upload input.raw 0x01000000   # 64x64 RAW grayscale (4096 bytes)\n");
+    print("  dtekv-upload input.raw 0x01000000   # 320x240 RAW grayscale (76800 bytes)\n");
     print("  [set filters with switches]\n");
     print("  [press KEY0 once]\n");
-    print("  dtekv-download output.raw 0x01010000 4096\n");
+    print("  dtekv-download output.raw 0x01010000 76800\n");
     print("\n");
 
     while (1) {

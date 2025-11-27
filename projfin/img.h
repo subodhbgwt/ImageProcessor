@@ -3,9 +3,9 @@
 
 #include <stdint.h>
 
-/* Fixed maximum supported image size: 64x64 (one byte per pixel) */
-#define MAX_W 64u
-#define MAX_H 64u
+/* Maximum (and current) image size: 320x240 (one byte per pixel) */
+#define MAX_W 320u
+#define MAX_H 240u
 
 typedef struct {
     uint16_t w;
