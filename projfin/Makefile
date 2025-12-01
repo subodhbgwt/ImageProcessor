@@ -5,9 +5,9 @@ OBJECTS ?= $(addsuffix .o, $(basename $(notdir $(SOURCES))))
 LINKER ?= $(SRC_DIR)/dtekv-script.lds
 
 TOOLCHAIN ?= riscv32-unknown-elf-
-CFLAGS ?= -Wall -nostdlib -mabi=ilp32 -march=rv32imzicsr -fno-builtin #-03
-# here comes advanced project optimization adjustment: 
-CFLAGS += $(OPT)
+CFLAGS ?= -Wall -nostdlib -mabi=ilp32 -march=rv32imzicsr -fno-builtin -O3
+# advanced project optimization adjustment between -O3 and -O0: 
+# CFLAGS += $(OPT)
 
 build: clean main.bin
 

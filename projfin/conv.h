@@ -1,9 +1,4 @@
-#ifndef CONV_H
-#define CONV_H
-
-#include "img.h"
-#include "kernels.h"
+typedef struct Image Image;
+typedef struct Kernel Kernel;
 
 void convolve(const Image *src, Image *dst, const Kernel *k);
-
-#endif
