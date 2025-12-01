@@ -29,7 +29,7 @@ extern void delay(int);
      # upload input image
      dtekv-upload input.raw 0x01000000
 
-     # after pressing KEY0 and LED9 is lit, download result
+     # after pressing KEY1 and LED9 is lit, download result
      dtekv-download output.raw 0x01010000 76800
  -------------------------------------------------------------------------- */
 
@@ -191,7 +191,7 @@ void imageproc_main(void) {
     print("Upload/download usage:\n");
     print("  dtekv-upload input.raw 0x01000000   # 320x240 RAW grayscale (76800 bytes)\n");
     print("  [set filters with switches]\n");
-    print("  [press KEY0 once]\n");
+    print("  [press KEY1 once]\n");
     print("  dtekv-download output.raw 0x01010000 76800\n");
     print("\n");
 
