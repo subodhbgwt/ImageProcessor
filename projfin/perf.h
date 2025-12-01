@@ -1,3 +1,6 @@
+#ifndef PERF_H
+#define PERF_H
+
 #include <stdint.h>
 
 typedef struct
@@ -15,3 +18,5 @@ typedef struct
 
 void clear_counters(void);
 void read_counters(PerfCounters *c);
+
+#endif

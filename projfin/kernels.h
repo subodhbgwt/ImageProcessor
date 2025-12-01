@@ -1,3 +1,6 @@
+#ifndef KERNELS_H
+#define KERNELS_H
+
 #include <stdint.h>
 
 typedef struct
@@ -19,3 +22,5 @@ typedef enum
 } FilterType;
 
 const Kernel *get_kernel(FilterType f, int size);
+
+#endif
