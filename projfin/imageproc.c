@@ -5,6 +5,7 @@
 #include "dtekv-lib.h"
 #include "imageproc.h"
 #include "vga.h"
+#include "perf.h"
 
 /* Reuse Lab 3 I/O + timing functions (defined in labmain.c / timetemplate.S) */
 extern void set_leds(int led_mask);
@@ -158,11 +159,17 @@ static Selection decode_switches(uint32_t sw) {
     }
 
     s.chain_on = (int)chain;
-    s.size1 = sizeb ? 5 : 3;
-    s.size2 = sizeb ? 5 : 3;
+
+    /* Size logic:
+       - SW5 = 0 → everyone is 3x3
+       - SW5 = 1 → GAUSS uses 5x5, others still 3x3
+    */
+    s.size1 = (s.f1 == FILTER_GAUSS && sizeb) ? 5 : 3;
+    s.size2 = (s.f2 == FILTER_GAUSS && sizeb) ? 5 : 3;
 
     return s;
 }
+
 
 /* --------------------------------------------------------------------------
    Main image-processing loop (called from labmain.c: main)
@@ -226,6 +233,10 @@ void imageproc_main(void) {
             /* Load input image from uploaded buffer */
             load_input_image_from_upload(&img_in);
 
+            /* --- Measure just the core image-processing work --- advanced project */
+            PerfCounters c;
+            clear_counters();
+
             /* First filter: img_in -> img_tmp */
             const Kernel *k1 = get_kernel(sel.f1, sel.size1);
             convolve(&img_in, &img_tmp, k1);
@@ -237,6 +248,19 @@ void imageproc_main(void) {
             } else {
                 img_copy(&img_tmp, &img_out);
             }
+
+            read_counters(&c); // advanced project
+
+            print("Perf counters:\n");
+            print("  mcycle = ");      print_dec(c.mcycle);        print("\n");
+            print("  minstret = ");    print_dec(c.minstret);      print("\n");
+            print("  mem instr = ");   print_dec(c.mhpm3_mem);     print("\n");
+            print("  I-miss = ");      print_dec(c.mhpm4_ic_miss); print("\n");
+            print("  D-miss = ");      print_dec(c.mhpm5_dc_miss); print("\n");
+            print("  I-stall = ");     print_dec(c.mhpm6_ic_stall); print("\n");
+            print("  D-stall = ");     print_dec(c.mhpm7_dc_stall); print("\n");
+            print("  Dhaz-stall = ");  print_dec(c.mhpm8_dhaz_stall); print("\n");
+            print("  ALU-stall = ");   print_dec(c.mhpm9_alu_stall);  print("\n");
 
             /* Compute checksum of final image and print it */
             uint32_t sum = img_checksum(&img_out);

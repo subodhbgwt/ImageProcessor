@@ -4,10 +4,10 @@
 #include <stdint.h>
 #include "img.h"
 
-/* Clear the whole VGA screen to a constant grayscale value */
+/* Clear the VGA screen to a grayscale value */
 void vga_clear(uint8_t gray);
 
-/* Draw an Image centered on the VGA screen */
+/* Draw an Image centered in the 320x240 VGA area */
 void vga_draw_image_centered(const Image *img);
 
 #endif
