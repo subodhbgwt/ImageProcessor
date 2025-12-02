@@ -46,14 +46,14 @@ void convolve(const Image *src, Image *dst, const Kernel *k)
             }
 
             if ((*k).norm > 1)
-            {                                                // normalize if needed, scales to kernels intended magnitude
+            {                                                // normalize, scales to kernels intended magnitude
                 if (acc >= 0)                                // positive values
                     acc = (acc + (*k).norm / 2) / (*k).norm; // rounding division
                 else                                         // negative values
                     acc = (acc - (*k).norm / 2) / (*k).norm; // rounding division
             }
 
-            acc += (*k).bias;                               // add bias, offset after normalization.Adds brightness or darkness
+            acc += (*k).bias;                               // add bias, offset after normalization. Adds brightness or darkness
             (*dst).data[y * (*dst).w + x] = clamp_int(acc); // store clamped result
         }
     }

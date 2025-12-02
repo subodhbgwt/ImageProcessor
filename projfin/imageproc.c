@@ -7,7 +7,7 @@
    Chosen RAM addresses (must fit your memory map):
 
      INPUT_BASE_ADDR  = 0x01000000  (for dtekv-upload)
-     OUTPUT_BASE_ADDR = 0x01010000  (for dtekv-download)
+     OUTPUT_BASE_ADDR = 0x01030000  (for dtekv-download; non-overlapping)
 
    Example host commands:
 
@@ -15,14 +15,13 @@
      dtekv-upload input.raw 0x01000000
 
      # after pressing KEY1 and LED9 is lit, download result
-     dtekv-download output.raw 0x01010000 76800
+     dtekv-download output.raw 0x01030000 76800
 
    Interpretation of switches (SWx = physical switch x):
 
    SW1:0 = filter 1 selection (2 bits)
    SW3:2 = filter 2 selection (2 bits)
    SW4   = chain enable (0 = only F1, 1 = F1 -> F2)
-   SW5   = size bit: 0 = 3x3, 1 = 5x5 (Gauss uses 5x5, others ignore size)
    SW8   = if set, force filter1 = EMBOSS (override SW1:0)
 
    Mapping of 2-bit codes to FilterType:
@@ -57,15 +56,15 @@ extern void delay(int);
 #define UPLOAD_BYTES (UPLOAD_PIXELS * BYTES_PER_PIXEL)
 
 #define INPUT_BASE_ADDR 0x01000000u  // address for dtekv-upload
-#define OUTPUT_BASE_ADDR 0x01010000u // address for dtekv-download
-
-#define INPUT_MEM ((volatile uint8_t *)INPUT_BASE_ADDR)   // pointer to input image data, 8 bit volatile unsigned ints.
-#define OUTPUT_MEM ((volatile uint8_t *)OUTPUT_BASE_ADDR) // pointer to output image data
+#define OUTPUT_BASE_ADDR 0x01030000u // address for dtekv-download (aligned, no overlap)
 
 // Image Buffers from image struct:
 static Image img_in;
 static Image img_tmp;
 static Image img_out;
+
+#define INPUT_MEM ((volatile uint8_t *)INPUT_BASE_ADDR)   // pointer to input image data
+#define OUTPUT_MEM ((volatile uint8_t *)OUTPUT_BASE_ADDR) // pointer to output image data
 
 // Copy image data from src to dst
 static void img_copy(const Image *src, Image *dst)
@@ -126,8 +125,6 @@ typedef struct // filter selection based on the selection struct
 {
     FilterType f1; // first filter
     FilterType f2; // second filter
-    int size1;     // 3 or 5
-    int size2;     // 3 or 5
     int chain_on;  // 0 or 1
 } Selection;
 
@@ -139,7 +136,6 @@ static Selection decode_switches(uint32_t sw)
     uint32_t code1 = sw & 0x3u;        // bits 1:0
     uint32_t code2 = (sw >> 2) & 0x3u; // bits 3:2
     uint32_t chain = (sw >> 4) & 0x1u; // bit 4
-    uint32_t sizeb = (sw >> 5) & 0x1u; // bit 5
 
     // 2-bit code -> filter
     static const FilterType table[4] = {
@@ -160,13 +156,6 @@ static Selection decode_switches(uint32_t sw)
 
     s.chain_on = (int)chain;
 
-    /* Size logic:
-       - SW5 = 0 → everyone is 3x3
-       - SW5 = 1 → GAUSS uses 5x5, others still 3x3
-    */
-    s.size1 = (s.f1 == FILTER_GAUSS && sizeb) ? 5 : 3;
-    s.size2 = (s.f2 == FILTER_GAUSS && sizeb) ? 5 : 3;
-
     return s;
 }
 
@@ -177,136 +166,110 @@ void imageproc_main(void)
     uint32_t last_sw = 0xFFFFFFFFu; // force initial update
     int last_bt = 0;                // last button state
 
-    print("Image processing final version\n");
+    print("Image processing\n");
     print("Controls:\n");
     print("  SW1:0  = Filter 1\n");
     print("  SW3:2  = Filter 2\n");
     print("  SW4    = Chain (0=F1 only, 1=F1->F2)\n");
-    print("  SW5    = Kernel size for Gaussian Blur (0=3x3, 1=5x5)\n");
     print("  SW8    = Emboss override for Filter 1\n");
     print("\n");
     print("Upload/download usage:\n");
     print("  dtekv-upload input.raw 0x01000000 // 320x240 RAW grayscale (76800 bytes)\n");
     print("  [set filters with switches]\n");
     print("  [press KEY1 once]\n");
-    print("  dtekv-download output.raw 0x01010000 76800 OR observe output in VGA\n");
+    print("  dtekv-download output.raw 0x01030000 76800 OR observe output in VGA\n");
     print("\n");
 
     while (1) // inf loop
+{
+    uint32_t sw = (uint32_t)get_sw(); // read switches
+    int bt = get_bt() ? 1 : 0;        // read button (1=pressed)
+
+    // Mirror switches on LEDs (without done-flag) as live status
+    if (sw != last_sw) // only update if changed
     {
-        uint32_t sw = (uint32_t)get_sw(); // read switches
-        int bt = get_bt() ? 1 : 0;        // read button (1=pressed)
+        set_leds((int)sw); // mirror switches to LEDs
+        last_sw = sw;      // update last_sw
+    }
 
-        // Mirror switches on LEDs (without done-flag) as live status
-        if (sw != last_sw) // only update if changed
+    // Rising edge on button -> run filters once
+    if (bt && !last_bt) // button pressed now, but not last time
+    {
+        Selection sel = decode_switches(sw); // decode switches
+
+        // Load input image from uploaded buffer
+        load_input_image_from_upload(&img_in);
+
+        // --- Get kernels FIRST so we can use their size fields ---
+        const Kernel *k1 = get_kernel(sel.f1, 0);
+        const Kernel *k2 = 0;
+
+        if (sel.chain_on)
         {
-            set_leds((int)sw); // mirror switches to LEDs
-            last_sw = sw;      // update last_sw
+            k2 = get_kernel(sel.f2, 0);
         }
 
-        // Rising edge on button -> run filters once
-        if (bt && !last_bt) // button pressed now, but not last time
+        print("\n---- New instance of processing ----\n");
+        print("SW = 0x");
+        print_hex32(sw);
+        print("\n");
+
+        // Filter 1 info
+        print("Filter 1: ");
+        print_dec((unsigned)sel.f1);
+        print("  size=");
+        print_dec((unsigned)(*k1).size);
+        print("\n");
+
+        // Filter 2 info
+        if (sel.chain_on && (k2 != 0))
         {
-            Selection sel = decode_switches(sw); // decode switches
-
-            print("\n=== New instance of processing ===\n");
-            print("SW = 0x");
-            print_hex32(sw);
-            print("\n");
-
-            print("Filter 1: ");
-            print_dec((unsigned)sel.f1);
+            print("Filter 2: ");
+            print_dec((unsigned)sel.f2);
             print("  size=");
-            print_dec((unsigned)sel.size1);
+            print_dec((unsigned)(*k2).size);
             print("\n");
-
-            if (sel.chain_on)
-            {
-                print("Filter 2: ");
-                print_dec((unsigned)sel.f2);
-                print("  size=");
-                print_dec((unsigned)sel.size2);
-                print("\n");
-            }
-            else
-            {
-                print("Filter 2: [disabled]\n");
-            }
-
-            load_input_image_from_upload(&img_in); // Load input image from uploaded buffer
-
-            /* Measure just the core image-processing work -/- advanced project
-            PerfCounters c;
-            clear_counters();
-            */
-
-            // First filter: img_in -> img_tmp
-            const Kernel *k1 = get_kernel(sel.f1, sel.size1);
-            convolve(&img_in, &img_tmp, k1);
-
-            // Optional second filter: img_tmp -> img_out
-            if (sel.chain_on)
-            {
-                const Kernel *k2 = get_kernel(sel.f2, sel.size2);
-                convolve(&img_tmp, &img_out, k2);
-            }
-            else
-            {
-                img_copy(&img_tmp, &img_out);
-            }
-
-            /* advanced project once again
-            read_counters(&c);
-            print("Perf counters:\n");
-            print("  mcycle = ");
-            print_dec(c.mcycle);
-            print("\n");
-            print("  minstret = ");
-            print_dec(c.minstret);
-            print("\n");
-            print("  mem instr = ");
-            print_dec(c.mhpm3_mem);
-            print("\n");
-            print("  I-miss = ");
-            print_dec(c.mhpm4_ic_miss);
-            print("\n");
-            print("  D-miss = ");
-            print_dec(c.mhpm5_dc_miss);
-            print("\n");
-            print("  I-stall = ");
-            print_dec(c.mhpm6_ic_stall);
-            print("\n");
-            print("  D-stall = ");
-            print_dec(c.mhpm7_dc_stall);
-            print("\n");
-            print("  Dhaz-stall = ");
-            print_dec(c.mhpm8_dhaz_stall);
-            print("\n");
-            print("  ALU-stall = ");
-            print_dec(c.mhpm9_alu_stall);
-            print("\n");
-            */
-
-            // Compute checksum of final image and print it to verify correctness
-            uint32_t sum = img_checksum(&img_out);
-            print("Output checksum = 0x");
-            print_hex32(sum);
-            print("\n");
-
-            // Save processed image to RAM for dtekv-download
-            save_output_image_to_download(&img_out);
-
-            // Draw processed image on VGA screen //
-            vga_clear(0);
-            vga_draw_image_centered(&img_out);
-
-            // Turn on LED9 as a flag that processing is done
-            set_leds((int)(sw | (1u << 9)));
-
-            // Simple delay so holding button doesn't retrigger immediately
-            delay(150);
+        }
+        else
+        {
+            print("Filter 2: [disabled]\n");
         }
 
-        last_bt = bt; // update last button state
+        // --- Core image-processing work ---
+
+        // First filter: img_in -> img_tmp
+        convolve(&img_in, &img_tmp, k1);
+
+        // Optional second filter: img_tmp -> img_out
+        if (sel.chain_on && (k2 != 0))
+        {
+            convolve(&img_tmp, &img_out, k2);
+        }
+        else
+        {
+            img_copy(&img_tmp, &img_out);
+        }
+
+        // Compute checksum of final image and print it to verify correctness
+        uint32_t sum = img_checksum(&img_out);
+        print("Output checksum = 0x");
+        print_hex32(sum);
+        print("\n");
+
+        // Save processed image to RAM for dtekv-download
+        save_output_image_to_download(&img_out);
+
+        // Draw processed image on VGA screen
+        vga_clear(0);
+        vga_draw_image_centered(&img_out);
+
+        // Turn on LED9 as a flag that processing is done
+        set_leds((int)(sw | (1u << 9)));
+
+        // Simple delay so holding button doesn't retrigger immediately
+        delay(150);
+    }
+
+    last_bt = bt; // update last button state
     }
 }

@@ -4,8 +4,8 @@
 
 /*
 VGA Screen Buffer
-We treat it as a 320x240 8-bit grayscale buffer laid out linearly:
-base address: 0x08000000
+Treat as a 320x240 8-bit grayscale buffer laid out linearly
+from base address 0x08000000.
 */
 
 #define VGA_BASE_ADDR 0x08000000u
