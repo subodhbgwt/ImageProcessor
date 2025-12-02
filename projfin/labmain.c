@@ -93,7 +93,7 @@ int get_bt(void)
 
 int main()
 {
-  
+
   imageproc_main();
 
   return 0;

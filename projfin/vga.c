@@ -13,7 +13,7 @@ from base address 0x08000000.
 #define VGA_HEIGHT 240
 #define VGA_STRIDE 320
 
-static volatile uint8_t *const VGA_FB8 = 
+static volatile uint8_t *const VGA_FB8 =
     (volatile uint8_t *)VGA_BASE_ADDR;
 
 // Clear screen to given gray level (0..255)

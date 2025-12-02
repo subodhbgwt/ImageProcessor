@@ -20,7 +20,7 @@ static const Kernel K_SHARPEN_3 = {
     1,
     0};
 
-// Gaussian blur 5x5 (sum = 256) 
+// Gaussian blur 5x5 (sum = 256)
 static const Kernel K_GAUSS_5 = {
     5,
     {1, 4, 6, 4, 1,
@@ -31,7 +31,7 @@ static const Kernel K_GAUSS_5 = {
     256,
     0};
 
-// Ting: Edge detection, Emboss 
+// Ting: Edge detection, Emboss
 
 static const Kernel K_EDGE_3 = {
     3,
@@ -49,7 +49,7 @@ static const Kernel K_EMBOSS_3 = {
      0, 1, 2,
      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
     1,
-    128 // bias so grey stays around 128 
+    128 // bias so grey stays around 128
 };
 
 const Kernel *get_kernel(FilterType f, int size)
@@ -57,7 +57,7 @@ const Kernel *get_kernel(FilterType f, int size)
     (void)size; // for now we always pick the natural size of the kernel
 
     switch (f) // all cases for different filters
-    { 
+    {
     case FILTER_IDENTITY:
         return &K_IDENTITY_3;
     case FILTER_SHARPEN:

@@ -166,7 +166,7 @@ void imageproc_main(void)
     uint32_t last_sw = 0xFFFFFFFFu; // force initial update
     int last_bt = 0;                // last button state
 
-    print("Image processing\n");
+    print("[Image processing]\n");
     print("Controls:\n");
     print("  SW1:0  = Filter 1\n");
     print("  SW3:2  = Filter 2\n");
@@ -181,95 +181,95 @@ void imageproc_main(void)
     print("\n");
 
     while (1) // inf loop
-{
-    uint32_t sw = (uint32_t)get_sw(); // read switches
-    int bt = get_bt() ? 1 : 0;        // read button (1=pressed)
-
-    // Mirror switches on LEDs (without done-flag) as live status
-    if (sw != last_sw) // only update if changed
     {
-        set_leds((int)sw); // mirror switches to LEDs
-        last_sw = sw;      // update last_sw
-    }
+        uint32_t sw = (uint32_t)get_sw(); // read switches
+        int bt = get_bt() ? 1 : 0;        // read button (1=pressed)
 
-    // Rising edge on button -> run filters once
-    if (bt && !last_bt) // button pressed now, but not last time
-    {
-        Selection sel = decode_switches(sw); // decode switches
-
-        // Load input image from uploaded buffer
-        load_input_image_from_upload(&img_in);
-
-        // --- Get kernels FIRST so we can use their size fields ---
-        const Kernel *k1 = get_kernel(sel.f1, 0);
-        const Kernel *k2 = 0;
-
-        if (sel.chain_on)
+        // Mirror switches on LEDs (without done-flag) as live status
+        if (sw != last_sw) // only update if changed
         {
-            k2 = get_kernel(sel.f2, 0);
+            set_leds((int)sw); // mirror switches to LEDs
+            last_sw = sw;      // update last_sw
         }
 
-        print("\n---- New instance of processing ----\n");
-        print("SW = 0x");
-        print_hex32(sw);
-        print("\n");
-
-        // Filter 1 info
-        print("Filter 1: ");
-        print_dec((unsigned)sel.f1);
-        print("  size=");
-        print_dec((unsigned)(*k1).size);
-        print("\n");
-
-        // Filter 2 info
-        if (sel.chain_on && (k2 != 0))
+        // Rising edge on button -> run filters once
+        if (bt && !last_bt) // button pressed now, but not last time
         {
-            print("Filter 2: ");
-            print_dec((unsigned)sel.f2);
-            print("  size=");
-            print_dec((unsigned)(*k2).size);
+            Selection sel = decode_switches(sw); // decode switches
+
+            // Load input image from uploaded buffer
+            load_input_image_from_upload(&img_in);
+
+            // --- Get kernels FIRST so we can use their size fields ---
+            const Kernel *k1 = get_kernel(sel.f1, 0);
+            const Kernel *k2 = 0;
+
+            if (sel.chain_on)
+            {
+                k2 = get_kernel(sel.f2, 0);
+            }
+
+            print("\n---- New instance of processing ----\n");
+            print("SW = 0x");
+            print_hex32(sw);
             print("\n");
+
+            // Filter 1 info
+            print("Filter 1: ");
+            print_dec((unsigned)sel.f1);
+            print("  size=");
+            print_dec((unsigned)(*k1).size);
+            print("\n");
+
+            // Filter 2 info
+            if (sel.chain_on && (k2 != 0))
+            {
+                print("Filter 2: ");
+                print_dec((unsigned)sel.f2);
+                print("  size=");
+                print_dec((unsigned)(*k2).size);
+                print("\n");
+            }
+            else
+            {
+                print("Filter 2: [disabled]\n");
+            }
+
+            // --- Core image-processing work ---
+
+            // First filter: img_in -> img_tmp
+            convolve(&img_in, &img_tmp, k1);
+
+            // Optional second filter: img_tmp -> img_out
+            if (sel.chain_on && (k2 != 0))
+            {
+                convolve(&img_tmp, &img_out, k2);
+            }
+            else
+            {
+                img_copy(&img_tmp, &img_out);
+            }
+
+            // Compute checksum of final image and print it to verify correctness
+            uint32_t sum = img_checksum(&img_out);
+            print("Output checksum = 0x");
+            print_hex32(sum);
+            print("\n");
+
+            // Save processed image to RAM for dtekv-download
+            save_output_image_to_download(&img_out);
+
+            // Draw processed image on VGA screen
+            vga_clear(0);
+            vga_draw_image_centered(&img_out);
+
+            // Turn on LED9 as a flag that processing is done
+            set_leds((int)(sw | (1u << 9)));
+
+            // Simple delay so holding button doesn't retrigger immediately
+            delay(150);
         }
-        else
-        {
-            print("Filter 2: [disabled]\n");
-        }
 
-        // --- Core image-processing work ---
-
-        // First filter: img_in -> img_tmp
-        convolve(&img_in, &img_tmp, k1);
-
-        // Optional second filter: img_tmp -> img_out
-        if (sel.chain_on && (k2 != 0))
-        {
-            convolve(&img_tmp, &img_out, k2);
-        }
-        else
-        {
-            img_copy(&img_tmp, &img_out);
-        }
-
-        // Compute checksum of final image and print it to verify correctness
-        uint32_t sum = img_checksum(&img_out);
-        print("Output checksum = 0x");
-        print_hex32(sum);
-        print("\n");
-
-        // Save processed image to RAM for dtekv-download
-        save_output_image_to_download(&img_out);
-
-        // Draw processed image on VGA screen
-        vga_clear(0);
-        vga_draw_image_centered(&img_out);
-
-        // Turn on LED9 as a flag that processing is done
-        set_leds((int)(sw | (1u << 9)));
-
-        // Simple delay so holding button doesn't retrigger immediately
-        delay(150);
-    }
-
-    last_bt = bt; // update last button state
+        last_bt = bt; // update last button state
     }
 }
