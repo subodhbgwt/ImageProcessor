@@ -41,8 +41,8 @@ void vga_draw_image_centered(const Image *img)
     if (draw_h > VGA_HEIGHT)
         draw_h = VGA_HEIGHT;
 
-    int off_x = (VGA_WIDTH - draw_w) / 2;
-    int off_y = (VGA_HEIGHT - draw_h) / 2;
+    int off_x = (VGA_WIDTH - draw_w) / 2; // center horizontally, essentially handles the leftover frames and makes them margins on each side.
+    int off_y = (VGA_HEIGHT - draw_h) / 2; // center vertically
 
     for (int y = 0; y < draw_h; ++y)
     {
