@@ -1,0 +1,18 @@
+# Build artifacts
+*.o
+*.elf
+*.bin
+*.elf.txt
+host_check
+
+# Raw image data (large binary files)
+*.raw
+
+# IDE / Editor
+.vscode/
+*.swp
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
