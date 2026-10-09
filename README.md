@@ -1,102 +1,76 @@
-# 🖼️ Image Processing on DE10-Lite (RISC-V)
+# Image processing on the DE10-Lite (RISC-V)
 
-Real-time image processing using convolution kernels, running on a **DE10-Lite FPGA** via a custom RISC-V soft processor. Built as the final project for **IS1500 Computer Organization and Components** at KTH Royal Institute of Technology.
+Convolution image filters written in C, running on a RISC-V soft processor on a DE10-Lite FPGA board. This was our final project in IS1500 Computer Organization and Components at KTH.
 
-![Input → Output](project/input.png)
+![Input and output](project/input.png)
 
----
+## What it does
 
-## ✨ Features
+- Five filters: identity, sharpen, 5x5 Gaussian blur, edge detection and emboss
+- Two filters can be chained, for example blur and then edge detection
+- The filters are picked with the switches on the board
+- The result shows on a VGA monitor as it's being processed
+- 320x240 grayscale RAW images are uploaded to and downloaded from the board
+- Performance counters measure how many cycles each convolution takes
 
-- **5 convolution filters** — Identity, Sharpen, Gaussian Blur (5×5), Edge Detection, Emboss
-- **Filter chaining** — Apply two filters sequentially (e.g., Blur → Edge Detection)
-- **Hardware switch control** — Select filters and toggle chaining via physical DIP switches
-- **VGA output** — View processed images in real-time on a connected monitor
-- **UART upload/download** — Transfer 320×240 grayscale RAW images to/from the board
-- **Performance counters** — Measure cycle counts for convolution operations
-
-## 🏗️ Architecture
+## How it fits together
 
 ```
-┌─────────────┐     UART      ┌──────────────────────┐     VGA
-│  Host PC    │ ──────────▶   │  DE10-Lite (RISC-V)  │ ──────────▶  Monitor
-│  (upload/   │               │                      │
-│   download) │   ◀──────────  │  • Load image        │
-└─────────────┘     UART      │  • Apply Filter 1    │
-                              │  • Apply Filter 2    │
-                              │  • Output to VGA/RAM │
-                              └──────────────────────┘
-                                     ▲
-                                     │ DIP Switches
-                                     │ (filter select)
+ Host PC  --upload-->  DE10-Lite (RISC-V)  --VGA-->  Monitor
+          <-download-    load image
+                         filter 1
+                         filter 2 (optional)
+                         write to VGA and RAM
+                              ^
+                              | switches pick the filters
 ```
 
-## 🗂️ Repository Structure
+## Files
 
 ```
-├── project/              # Main image processing project
-│   ├── imageproc.c       # Core processing loop & filter control
-│   ├── conv.c / conv.h   # Convolution engine
-│   ├── kernels.c / .h    # Filter kernel definitions
-│   ├── vga.c / vga.h     # VGA framebuffer driver
-│   ├── perf.c / perf.h   # Performance counter utilities
-│   ├── labmain.c         # Entry point
-│   ├── boot.S            # RISC-V boot assembly
-│   ├── timetemplate.S    # Timer/interrupt template
-│   ├── dtekv-lib.*       # Board support library
-│   ├── input.png         # Sample input image
-│   └── output.png        # Sample processed output
-├── labs/                  # Course lab exercises
-│   ├── lab2/             # Pointers, primes, sieves (C)
-│   ├── lab3/             # I/O, hex display (Assembly + C)
-│   ├── time4int/         # Interrupt-driven timer
-│   └── time4timer/       # Hardware timer lab
-├── riscv32tests/         # RISC-V instruction test suite
-└── .gitignore
+project/          the image processing project
+  imageproc.c     main loop and filter control
+  conv.c/.h       convolution
+  kernels.c/.h    filter kernels
+  vga.c/.h        VGA framebuffer driver
+  perf.c/.h       performance counters
+  labmain.c       entry point
+  boot.S          RISC-V boot code
+  timetemplate.S  timer and interrupt template
+  dtekv-lib.*     board support library
+  input.png       sample input
+  output.png      sample output
+labs/             course labs (pointers and primes in C, I/O in assembly, timers, interrupts)
+riscv32tests/     RISC-V instruction tests
 ```
 
-## 🔧 Build & Run
+## Building and running
 
-### Requirements
-- RISC-V GCC cross-compilation toolchain
-- DE10-Lite board with USB-Blaster
-- VGA monitor (optional, for real-time output)
-- ImageMagick (optional, for image conversion)
+You need the RISC-V GCC cross-compiler and a DE10-Lite with a USB-Blaster. A VGA monitor and ImageMagick are optional.
 
-### Build
 ```bash
 cd project
 make clean && make
-```
 
-### Run on DE10-Lite
-```bash
-# Upload a 320×240 grayscale RAW image
-dtekv-upload input.raw 0x01000000
-
-# Flash and run the program
+dtekv-upload input.raw 0x01000000              # 320x240 grayscale RAW image
 dtekv-run main.bin
-
-# Configure switches, press KEY1 to process
-
-# Download the result
-dtekv-download output.raw 0x01030000 76800
+# set the switches, then press KEY1 to process
+dtekv-download output.raw 0x01030000 76800     # get the result back
 ```
 
-### Switch Configuration
+### Switches
 
 | Switch | Function |
 |--------|----------|
-| SW1:0 | Filter 1 select (00=Identity, 01=Sharpen, 10=Gaussian, 11=Edge) |
-| SW3:2 | Filter 2 select (same mapping) |
-| SW4 | Chain enable (0=Filter 1 only, 1=Filter 1 → Filter 2) |
-| SW8 | Override Filter 1 to Emboss |
+| SW1:0 | Filter 1 (00 identity, 01 sharpen, 10 Gaussian, 11 edge) |
+| SW3:2 | Filter 2 (same mapping) |
+| SW4 | 0 = filter 1 only, 1 = filter 1 then filter 2 |
+| SW8 | Use emboss as filter 1 |
 
-LED9 lights up when processing is complete.
+LED9 lights up when processing is done.
 
-## 📜 License
+## License and credits
 
-BSD-style license — see [COPYING](project/COPYING) for details.
+BSD-style license, see [COPYING](project/COPYING).
 
-**Original framework:** Artur Podobas, Wiktor Szczerek, Pedro Antunes (KTH)
-**Project work:** Subodh Bhagwat, Tingyuan Hu
+The board framework is by Artur Podobas, Wiktor Szczerek and Pedro Antunes at KTH. The project itself is by Subodh Bhagwat and Tingyuan Hu.
